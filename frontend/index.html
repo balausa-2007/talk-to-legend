@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Talk to a Legend</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: #0a0a0a;
+            color: #f0e6d3;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a0a00, #2d1500);
+            border-bottom: 2px solid #8b6914;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #d4a017;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        header p {
+            color: #a08050;
+            margin-top: 5px;
+            font-size: 0.9rem;
+        }
+
+        .characters {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            padding: 20px;
+            background: #111;
+            flex-wrap: wrap;
+        }
+
+        .character-btn {
+            padding: 12px 20px;
+            border: 2px solid #8b6914;
+            background: transparent;
+            color: #d4a017;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            font-family: 'Georgia', serif;
+            transition: all 0.3s;
+        }
+
+        .character-btn:hover {
+            background: #8b6914;
+            color: #0a0a0a;
+        }
+
+        .character-btn.active {
+            background: #d4a017;
+            color: #0a0a0a;
+            font-weight: bold;
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message.user {
+            align-items: flex-end;
+        }
+
+        .message.bot {
+            align-items: flex-start;
+        }
+
+        .message-label {
+            font-size: 0.75rem;
+            color: #a08050;
+            margin-bottom: 5px;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 14px 18px;
+            border-radius: 12px;
+            line-height: 1.6;
+            font-size: 0.95rem;
+        }
+
+        .message.user .message-bubble {
+            background: #1a3a1a;
+            border: 1px solid #2d5a2d;
+            color: #c8e6c8;
+        }
+
+        .message.bot .message-bubble {
+            background: #1a1000;
+            border: 1px solid #8b6914;
+            color: #f0e6d3;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: #111;
+            border-top: 2px solid #8b6914;
+            display: flex;
+            gap: 10px;
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        .input-area input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #1a1a1a;
+            border: 1px solid #8b6914;
+            color: #f0e6d3;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-family: 'Georgia', serif;
+            outline: none;
+        }
+
+        .input-area input:focus {
+            border-color: #d4a017;
+        }
+
+        .input-area button {
+            padding: 12px 24px;
+            background: #8b6914;
+            color: #f0e6d3;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-family: 'Georgia', serif;
+            transition: background 0.3s;
+        }
+
+        .input-area button:hover {
+            background: #d4a017;
+            color: #0a0a0a;
+        }
+
+        .selected-character {
+            text-align: center;
+            padding: 10px;
+            color: #d4a017;
+            font-size: 1rem;
+            background: #0f0f0f;
+            border-bottom: 1px solid #2a1a00;
+        }
+
+        .loading {
+            color: #a08050;
+            font-style: italic;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #111; }
+        ::-webkit-scrollbar-thumb { background: #8b6914; border-radius: 3px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>⚔️ Talk to a Legend</h1>
+    <p>Speak with the great figures of Kazakh history</p>
+</header>
+
+<div class="characters" id="characters">
+    <p style="color:#a08050">Loading characters...</p>
+</div>
+
+<div class="selected-character" id="selected-character">
+    Select a historical figure to begin
+</div>
+
+<div class="chat-container" id="chat"></div>
+
+<div class="input-area">
+    <input type="text" id="input" placeholder="Ask a question in any language..." disabled />
+    <button onclick="sendMessage()" id="send-btn" disabled>Send</button>
+</div>
+
+<script>
+    const API = 'http://localhost:8000';
+    let selectedCharacter = null;
+    let characterNames = {};
+
+    async function loadCharacters() {
+        const res = await fetch(`${API}/characters`);
+        const characters = await res.json();
+
+        const container = document.getElementById('characters');
+        container.innerHTML = '';
+
+        characters.forEach(char => {
+            characterNames[char.id] = char.name;
+            const btn = document.createElement('button');
+            btn.className = 'character-btn';
+            btn.textContent = char.name;
+            btn.onclick = () => selectCharacter(char.id, char.name);
+            container.appendChild(btn);
+        });
+    }
+
+    function selectCharacter(id, name) {
+        selectedCharacter = id;
+
+        document.querySelectorAll('.character-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.textContent === name) btn.classList.add('active');
+        });
+
+        document.getElementById('selected-character').textContent = `Speaking with: ${name}`;
+        document.getElementById('input').disabled = false;
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('chat').innerHTML = '';
+
+        addMessage('bot', name, `Сәлем. Мен ${name}мін. Маған не сұрағың бар? / Здравствуй. Я — ${name}. О чём ты хочешь спросить? / Greetings. I am ${name}. What would you like to ask me?`);
+    }
+
+    function addMessage(type, label, text) {
+        const chat = document.getElementById('chat');
+        const div = document.createElement('div');
+        div.className = `message ${type}`;
+        div.innerHTML = `
+            <div class="message-label">${label}</div>
+            <div class="message-bubble">${text}</div>
+        `;
+        chat.appendChild(div);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    async function sendMessage() {
+        const input = document.getElementById('input');
+        const message = input.value.trim();
+        if (!message || !selectedCharacter) return;
+
+        addMessage('user', 'You', message);
+        input.value = '';
+
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'message bot';
+        loadingDiv.innerHTML = `<div class="message-label">${characterNames[selectedCharacter]}</div><div class="message-bubble loading">thinking...</div>`;
+        document.getElementById('chat').appendChild(loadingDiv);
+
+        try {
+            const res = await fetch(`${API}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message, character: selectedCharacter })
+            });
+            const data = await res.json();
+            loadingDiv.remove();
+            addMessage('bot', characterNames[selectedCharacter], data.response);
+        } catch (err) {
+            loadingDiv.remove();
+            addMessage('bot', 'Error', 'Something went wrong. Make sure the server is running.');
+        }
+    }
+
+    document.getElementById('input').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendMessage();
+    });
+
+    loadCharacters();
+</script>
+
+</body>
+</html>
